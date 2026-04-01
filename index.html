@@ -81,6 +81,9 @@
             <button id="tool-r" class="btn-tool px-4 py-2 rounded-md flex items-center gap-2 text-xs font-bold text-slate-700">
                 <span class="text-cyan-500">🔄</span> [R] Refresh
             </button>
+            <button id="tool-s" class="btn-tool px-4 py-2 rounded-md flex items-center gap-2 text-xs font-bold text-slate-700">
+                <span class="text-indigo-500">💾</span> [S] Save JSON
+            </button>
         </div>
 
         <div class="flex-grow flex overflow-hidden">
@@ -107,6 +110,7 @@
                         <div class="flex items-center gap-3"><span class="kbd-box">D</span> <div class="text-[11px]"><p class="font-bold text-slate-700">Delete</p><p class="text-[9px] text-slate-500">Remove point</p></div></div>
                         <div class="flex items-center gap-3"><span class="kbd-box">M</span> <div class="text-[11px]"><p class="font-bold text-slate-700">Move</p><p class="text-[9px] text-slate-500">Drag vertex</p></div></div>
                         <div class="flex items-center gap-3"><span class="kbd-box">R</span> <div class="text-[11px]"><p class="font-bold text-slate-700">Refresh</p><p class="text-[9px] text-slate-500">Redraw All</p></div></div>
+                        <div class="flex items-center gap-3"><span class="kbd-box">S</span> <div class="text-[11px]"><p class="font-bold text-slate-700">Save JSON</p><p class="text-[9px] text-slate-500">Export drawing</p></div></div>
                         <div class="flex items-center gap-3"><span class="kbd-box">Ctrl+Z/Y</span> <div class="text-[11px]"><p class="font-bold text-slate-700">Undo/Redo</p><p class="text-[9px] text-slate-500">Time Travel</p></div></div>
                     </div>
                 </section>
@@ -201,6 +205,7 @@
         setTimeout(resize, 0);
 
         function getTotalLinesCount() {
+            // Calculates the number of drawn line segments (vertices - 1)
             return polys.reduce((acc, p) => acc + Math.max(0, p.length - 1), 0);
         }
 
@@ -410,8 +415,32 @@
             });
         }
 
+        function exportJSON() {
+            if (polys.length === 0) {
+                alert("Nothing to save! Draw some polylines first.");
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(polys, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "polyline_drawing.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
         // Standard Action Handlers
-        const handleRefresh = () => { saveState(); polys = []; resetModes(); };
+        const handleRefresh = () => { 
+            resetModes(); // Safely cancel any active drawing or moving
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Erase the screen
+            document.getElementById('sys-status').innerText = 'Refreshing...';
+            
+            // Add a 250ms delay so the user actually sees the screen clear before it redraws
+            setTimeout(() => {
+                draw(); 
+                document.getElementById('sys-status').innerText = 'Ready';
+            }, 250);
+        };
         const handleQuit = () => { if(confirm("Are you sure you want to quit? Unsaved progress will be lost.")) window.close(); };
 
         // Hotkeys Matrix
@@ -429,6 +458,7 @@
             if(k === 'd') changeMode('DELETE');
             if(k === 'm') changeMode('MOVE_SELECT');
             if(k === 'r') handleRefresh();
+            if(k === 's') exportJSON();
             if(k === 'q') handleQuit();
             if(k === 'enter') finishDrawing();
             if(k === 'escape') resetModes();
@@ -439,6 +469,7 @@
         document.getElementById('tool-d').onclick = () => changeMode('DELETE');
         document.getElementById('tool-m').onclick = () => changeMode('MOVE_SELECT');
         document.getElementById('tool-r').onclick = handleRefresh;
+        document.getElementById('tool-s').onclick = exportJSON;
 
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         updateUI();
